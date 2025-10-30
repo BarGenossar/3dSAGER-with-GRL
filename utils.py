@@ -314,29 +314,6 @@ def generate_final_results_matching(results_dict, results_path, file_name):
     return
 
 
-# def generate_final_results_blocking(results_dict, results_path, file_name):
-#     final_res_dict = defaultdict(dict)
-#     file_path = (f"{results_path}{file_name}_blocking.csv")
-#     if "bkafi" in blocking_method:
-#         for bkafi_dim, bkafi_dict in results_dict[1]['blocking'].items():
-#             for cand_pairs_per_item, cand_dict in bkafi_dict.items():
-#                 for metric, metric_val in cand_dict.items():
-#                     metric_res_list = []
-#                     for seed in results_dict.keys():
-#                         metric_res_list.append(results_dict[seed]['blocking'][bkafi_dim][cand_pairs_per_item][metric])
-#                     final_res_dict[f'{bkafi_dim}_{cand_pairs_per_item}'][metric] = round(np.mean(metric_res_list), 3)
-#     else:
-#         for cand_pairs_per_item in results_dict[1]['blocking'].keys():
-#             for metric in results_dict[1]['blocking'][cand_pairs_per_item].keys():
-#                 metric_res_list = []
-#                 for seed in results_dict.keys():
-#                     metric_res_list.append(results_dict[seed]['blocking'][cand_pairs_per_item][metric])
-#                 final_res_dict[cand_pairs_per_item][metric] = round(np.mean(metric_res_list), 3)
-#     df = pd.DataFrame.from_dict(final_res_dict, orient='index')
-#     df.to_csv(file_path)
-#     return
-
-
 def get_general_file_name(parser):
     if parser.general_file_name is None:
         general_file_name = config.Constants.file_name_suffix
@@ -388,9 +365,7 @@ def load_dataset_partition_dict(dataset_name, logger, seed):
     dir_path = config.FilePaths.dataset_partition_path
     logger.info(f"Loading dataset_partition_dict from {dir_path}{dataset_name}_seed{seed}.pkl")
     full_path = f"{dir_path}{dataset_name}_seed{seed}.pkl"
-    # full_path_dirty = full_path.replace('.pkl', '_dirty.pkl')
     dataset_partition_dict = pkl.load(open(full_path, 'rb'))
-#    dataset_partition_dict_dirty = pkl.load(open(full_path, 'rb'))
     logger.info(f"dataset_partition_dict was loaded successfully")
     return dataset_partition_dict
 
