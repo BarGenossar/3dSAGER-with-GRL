@@ -5,13 +5,13 @@ from torch_geometric.nn import global_mean_pool
 
 
 class GraphEncoder(nn.Module):
-    def __init__(self, feature_config, training_params):
+    def __init__(self, feature_config, model_params):
         """
         GraphSAGE-based encoder for heterogeneous graphs.
 
         Args:
             feature_config (dict): contains info about node/edge types.
-            training_params (dict): contains the following training hyperparameters:
+            model_params (dict): contains the following training hyperparameters:
                 hidden_dim1 (int): hidden dimension size.
                 hidden_dim2 (int): hidden dimension size.
                 out_dim (int): output embedding dimension.
@@ -19,11 +19,11 @@ class GraphEncoder(nn.Module):
                 dropout_rate (float): dropout rate.
         """
         super().__init__()
-        self.hidden_dim1 = training_params['hidden_dim1']
-        self.hidden_dim2 = training_params['hidden_dim2']
-        self.out_dim = training_params['out_dim']
-        self.num_layers = training_params['gnn_layers_num']
-        self.dropout = nn.Dropout(training_params['dropout_rate'])
+        self.hidden_dim1 = model_params['hidden_dim1']
+        self.hidden_dim2 = model_params['hidden_dim2']
+        self.out_dim = model_params['out_dim']
+        self.num_layers = model_params['gnn_layers_num']
+        self.dropout = nn.Dropout(model_params['dropout_rate'])
         # verify that the number of gnn layers is at least 1 and at most 3, otherwise raise an error
         if self.num_layers < 1 or self.num_layers > 3:
             raise ValueError("Number of GNN layers must be between 2 and 3.")

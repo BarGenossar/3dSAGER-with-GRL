@@ -22,11 +22,10 @@ class GRLPipelineManager:
         self.suffix = args.suffix
         self.min_surfaces_num = args.min_surfaces_num
         self.neg_pairs_num = args.neg_pairs_num
-        self.pair_aggregation = args.pair_aggregation
         self.result_dict = defaultdict(dict)
         self.type_generators = TYPE_GENERATORS
         self.training_epochs = args.training_epochs
-        self.training_params = self._get_training_params(args)
+        self.model_params = self._get_model_params(args)
         self.feature_config = self._load_json("feature_generators/type_features_dict.json")
         self.graph_objects = self._get_or_load_graph_objects()
         self.pairs = self._get_pairs()
@@ -50,15 +49,16 @@ class GRLPipelineManager:
         return graph_objects
 
     @staticmethod
-    def _get_training_params(args):
+    def _get_model_params(args):
         return {
+            "pair_aggregation": args.pair_aggregation,
             "lr": args.lr,
             "weight_decay": args.weight_decay,
             "gnn_layers_num": args.gnn_layers_num,
             "batch_size": args.batch_size,
             "hidden_dim1": args.hidden_dim1,
             "hidden_dim2": args.hidden_dim2,
-            "hidden_dim3": args.hidden_dim3,
+            "out_dim": args.out_dim,
             "dropout_rate": args.dropout_rate,
         }
 
@@ -217,16 +217,16 @@ class GRLPipelineManager:
         train_loader = self._get_data_loader("train")
         val_loader = self._get_data_loader("validation")
         test_loader = self._get_data_loader("test")
-        encoder = GraphEncoder(self.feature_config, self.training_params)
+        encoder = GraphEncoder(self.feature_config, self.model_params)
         classifier = PairMatcher(
             encoder,
-            aggregation=self.pair_aggregation,
+            aggregation=self.model_params["pair_aggregation"],
         )
         criterion = torch.nn.BCEWithLogitsLoss()
         # criterion = torch.nn.CrossEntropyLoss()
         optimizer = torch.optim.AdamW(classifier.parameters(),
-                                      lr=self.training_params["lr"],
-                                      weight_decay=self.training_params["weight_decay"])
+                                      lr=self.model_params["lr"],
+                                      weight_decay=self.model_params["weight_decay"])
         trainer = Trainer(
             model=classifier,
             optimizer=optimizer,
@@ -235,6 +235,7 @@ class GRLPipelineManager:
         )
         trainer.fit(train_loader, val_loader, num_epochs=self.training_epochs, monitor="f1")
         eval_metrics, eval_preds = trainer.evaluate(test_loader, return_preds=True)
+        self.logger.info(f"Test evaluation metrics: {eval_metrics}")
         eval_artifacts = {
             "metrics": eval_metrics,
             "predictions": eval_preds["preds"],
@@ -274,11 +275,10 @@ class GRLPipelineManager:
             "config": {
                 "dataset": self.dataset_name,
                 "suffix": self.suffix,
-                "aggregation": self.pair_aggregation,
             },
             "eval_metrics": eval_artifacts["metrics"],
             "predictions": eval_artifacts["predictions"],  # numpy array
-            "labels": eval_artifacts["labels"],  # numpy array
+            "labels": eval_artifacts["labels"],
         }
         torch.save(checkpoint, save_path)
         self.logger.info(f"Saved trained model to {save_path}")

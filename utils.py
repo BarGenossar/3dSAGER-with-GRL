@@ -298,6 +298,50 @@ def generate_final_result_csv(results_dict, args):
         raise ValueError(f"Evaluation mode {evaluation_mode} is not supported")
     return
 
+def generate_final_result_pickle(result_dict, training_params, output_dir="results", filename=None):
+    """
+    Save per-seed metrics, mean/std summary, and training_params to a pickle.
+
+    Args:
+        result_dict: {seed: {'accuracy': float, 'f1': float, ...}, ...}
+        training_params: dict of your run configuration (lr, bs, epochs, etc.)
+        output_dir: directory to save file in
+        filename: optional custom filename (e.g., 'final_results.pkl')
+    """
+    os.makedirs(output_dir, exist_ok=True)
+
+    # collect metrics across seeds
+    metrics = list(next(iter(result_dict.values())).keys())
+    stacks = {m: [] for m in metrics}
+    for seed, mvals in result_dict.items():
+        for m in metrics:
+            stacks[m].append(mvals[m])
+
+    summary = {
+        m: {
+            "values": np.array(stacks[m]),
+            "mean": float(np.mean(stacks[m])),
+            "std": float(np.std(stacks[m])),
+        } for m in metrics
+    }
+
+    artifact = {
+        "training_params": dict(training_params),  # saved verbatim
+        "seed_results": result_dict,               # per-seed metrics
+        "summary": summary,                        # mean/std per metric
+        "created_at": datetime.datetime.now().isoformat(timespec="seconds"),
+    }
+
+    if filename is None:
+        filename = f"final_results_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pkl"
+    path = os.path.join(output_dir, filename)
+    with open(path, "wb") as f:
+        pkl.dump(artifact, f)
+
+    print("Saved:", path)
+    for m, s in summary.items():
+        print(f"{m:10s}: {s['mean']:.3f} ± {s['std']:.3f}")
+
 
 def generate_final_results_matching(results_dict, results_path, file_name):
     final_res_dict = defaultdict(dict)
