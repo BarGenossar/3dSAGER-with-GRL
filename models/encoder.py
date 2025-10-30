@@ -5,7 +5,7 @@ from torch_geometric.nn import global_mean_pool
 
 
 class GraphEncoder(nn.Module):
-    def __init__(self, feature_config, hidden_dim=64, out_dim=128, num_layers=2, dropout=0.2):
+    def __init__(self, feature_config, training_params):
         """
         GraphSAGE-based encoder for heterogeneous graphs.
 
@@ -17,32 +17,41 @@ class GraphEncoder(nn.Module):
             dropout (float): dropout probability.
         """
         super().__init__()
-        self.hidden_dim = hidden_dim
-        self.out_dim = out_dim
-        self.num_layers = num_layers
-        self.dropout = nn.Dropout(dropout)
+        self.hidden_dim1 = training_params['hidden_dim1']
+        self.hidden_dim2 = training_params['hidden_dim2']
+        self.out_dim = training_params['out_dim']
+        self.num_layers = training_params['gnn_layers_num']
+        self.dropout = nn.Dropout(training_params['dropout_rate'])
+        # verify that the number of gnn layers is at least 1 and at most 3, otherwise raise an error
+        if self.num_layers < 1 or self.num_layers > 3:
+            raise ValueError("Number of GNN layers must be between 2 and 3.")
 
         self.layers = nn.ModuleList()
         self.norms = nn.ModuleList()
 
-        for i in range(num_layers):
+        for i in range(self.num_layers):
+            out_channels = self._get_out_channels(i)
             conv = HeteroConv(
                 {
-                    (src, rel, dst): SAGEConv(
-                        (-1, -1),
-                        hidden_dim if i < num_layers - 1 else out_dim,
-                        aggr="mean",
-                    )
+                    (src, rel, dst): SAGEConv((-1, -1), out_channels, aggr="mean")
                     for (src, rel, dst) in feature_config.get("relations", [])
-                },
-                aggr="mean",
+                }, aggr="mean",
             )
             self.layers.append(conv)
-            if i < num_layers - 1:
-                self.norms.append(nn.BatchNorm1d(hidden_dim))
+            self.norms.append(nn.BatchNorm1d(out_channels))
+
+        self.project = nn.Linear(self.out_dim, self.out_dim)
+
+    def _get_out_channels(self, layer_idx):
+        if layer_idx == 0:
+            return self.hidden_dim1
+        elif layer_idx == 1:
+            if self.num_layers == 2:
+                return self.out_dim
             else:
-                self.norms.append(nn.BatchNorm1d(out_dim))
-        self.project = nn.Linear(out_dim, out_dim)
+                return self.hidden_dim2
+        else:
+            return self.out_dim
 
     def forward(self, data):
         x_dict, edge_index_dict = data.x_dict, data.edge_index_dict

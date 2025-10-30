@@ -26,6 +26,7 @@ class GRLPipelineManager:
         self.result_dict = defaultdict(dict)
         self.type_generators = TYPE_GENERATORS
         self.training_epochs = args.training_epochs
+        self.training_params = self._get_training_params(args)
         self.feature_config = self._load_json("feature_generators/type_features_dict.json")
         self.graph_objects = self._get_or_load_graph_objects()
         self.pairs = self._get_pairs()
@@ -47,6 +48,19 @@ class GRLPipelineManager:
             with open(cache_path, "wb") as f:
                 pkl.dump(graph_objects, f)
         return graph_objects
+
+    @staticmethod
+    def _get_training_params(args):
+        return {
+            "lr": args.lr,
+            "weight_decay": args.weight_decay,
+            "gnn_layers_num": args.gnn_layers_num,
+            "batch_size": args.batch_size,
+            "hidden_dim1": args.hidden_dim1,
+            "hidden_dim2": args.hidden_dim2,
+            "hidden_dim3": args.hidden_dim3,
+            "dropout_rate": args.dropout_rate,
+        }
 
     def _add_relations(self, graph_objects):
         all_relations = set()
@@ -203,14 +217,16 @@ class GRLPipelineManager:
         train_loader = self._get_data_loader("train")
         val_loader = self._get_data_loader("validation")
         test_loader = self._get_data_loader("test")
-        encoder = GraphEncoder(self.feature_config)
+        encoder = GraphEncoder(self.feature_config, self.training_params)
         classifier = PairMatcher(
             encoder,
             aggregation=self.pair_aggregation,
         )
         criterion = torch.nn.BCEWithLogitsLoss()
         # criterion = torch.nn.CrossEntropyLoss()
-        optimizer = torch.optim.AdamW(classifier.parameters(), lr=5e-4, weight_decay=1e-3)
+        optimizer = torch.optim.AdamW(classifier.parameters(),
+                                      lr=self.training_params["lr"],
+                                      weight_decay=self.training_params["weight_decay"])
         trainer = Trainer(
             model=classifier,
             optimizer=optimizer,
