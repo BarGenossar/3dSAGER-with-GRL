@@ -1,0 +1,14 @@
+# Ignore log files
+*.log
+*.zip
+*.gpkg
+*.ipynb
+*.pkl
+# Ignore specific directory
+/results/
+/saved_model_files/
+/data/dataset_partitions/
+/data/property_dicts/
+/data_preparation/
+/Error3Dcity/
+/synthetic_data/

@@ -1,0 +1,36 @@
+{
+    "bo_em": {
+        "cands_path": "data/240823/em/",
+        "index_path": "data/240823/bo/",
+        "roads_path": "data/roads/roads1.geojson",
+        "general_file_name": "em_bo1",
+        "object_dict_path": "data/240823/"
+    },
+    "gpkg": {
+        "cands_path": "data/200224/history2021/",
+        "index_path": "data/200224/solid2021/",
+        "roads_path": "data/roads/roads1.geojson",
+        "general_file_name": "gpkg1",
+        "object_dict_path": "data/200224/"
+    },
+    "delivery3": {
+        "index_path": "data/210424/all_pairs/set_1/new/",
+        "cands_path": "data/210424/all_pairs/set_2/new/",
+        "roads_path": "data/roads/roads1.geojson",
+        "general_file_name": "delivery3_all_pairs",
+        "object_dict_path": "data/210424/all_pairs/"
+    },
+    "Hague": {
+        "cands_path": "data/RawCitiesData/The Hague/Source A/",
+        "index_path": "data/RawCitiesData/The Hague/Source B/",
+        "roads_path": "",
+        "general_file_name": "Hague",
+        "object_dict_path": "data/RawCitiesData/The Hague/"
+    },
+    "synthetic_example": {
+        "cands_path": "data/synthetic/example/LOD3-0.2.json",
+        "index_path": "data/synthetic/example/LOD3.json",
+        "roads_path": "",
+        "general_file_name": "synthetic_example"
+    }
+}

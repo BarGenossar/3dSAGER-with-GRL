@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="7ae0533c-0dde-46c0-9d33-b87c361739ec" name="sbargen@iegpu08.iem.technion.ac.il">
+        <fileTransfer accessType="SFTP" host="iegpu08.iem.technion.ac.il" port="22" sshConfigId="16af8ead-6e0c-42fe-93bc-5738d9febaa7" sshConfig="sbargen@iegpu08.iem.technion.ac.il:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
