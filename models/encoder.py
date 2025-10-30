@@ -11,10 +11,12 @@ class GraphEncoder(nn.Module):
 
         Args:
             feature_config (dict): contains info about node/edge types.
-            hidden_dim (int): hidden dimension size.
-            out_dim (int): output embedding dimension.
-            num_layers (int): number of GraphSAGE layers.
-            dropout (float): dropout probability.
+            training_params (dict): contains the following training hyperparameters:
+                hidden_dim1 (int): hidden dimension size.
+                hidden_dim2 (int): hidden dimension size.
+                out_dim (int): output embedding dimension.
+                gnn_layers_num (int): number of GNN layers (1 to 3).
+                dropout_rate (float): dropout rate.
         """
         super().__init__()
         self.hidden_dim1 = training_params['hidden_dim1']
