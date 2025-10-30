@@ -9,21 +9,21 @@ from multiprocessing import Pool, cpu_count
 import numpy as np
 
 
-class DataPartitionDirtyGenerator:
+class DataPartitionGenerator:
     def __init__(self, args, min_surfaces_num=10):
         self.dataset_name = args.dataset_name
         self.min_surfaces_num = min_surfaces_num
         self.train_neg_samples_list = args.train_neg_samples_list
         self.train_size_ratio_list = args.train_size_ratio_list
         self.test_size_ratio_list = args.test_size_ratio_list
-        self.contamination_levels = args.contamination_levels
         self.test_negative_samples_list = args.test_negative_samples_list
         self.cands_ids, self.index_ids = self._get_cands_and_index_ids()
         # self.create_dataset_partition_dict()
 
     def _get_cands_and_index_ids(self):
-        dataset_config = json.load(open('dataset_configs.json'))["Hague"]
-        main_object_dict = self._read_objects_Hague(dataset_config)
+        dataset_config = json.load(open('../dataset_configs.json'))[self.dataset_name]
+        dataset_name = self.dataset_name if "synthetic" not in self.dataset_name else "synthetic"
+        main_object_dict = getattr(self, f'_read_objects_{dataset_name}')(dataset_config)
         cands_ids = set(main_object_dict['cands'].keys())
         index_ids = set(main_object_dict['index'].keys())
         del main_object_dict
@@ -33,63 +33,42 @@ class DataPartitionDirtyGenerator:
         self.seed = seed
         cands_ids = self.cands_ids
         index_ids = self.index_ids
-        train_negative_sampling_dict, intersection_set = self._get_train_negative_sampling_dict(cands_ids, index_ids)
-        test_dict = self._get_test_ids_dict(cands_ids, train_negative_sampling_dict, intersection_set)
+        train_negative_sampling_dict = self._get_train_negative_sampling_dict(cands_ids, index_ids)
+        test_dict = self._get_test_ids_dict(cands_ids, index_ids, train_negative_sampling_dict)
         dataset_partition_dict = {'train': {'negative_sampling': train_negative_sampling_dict}, 'test': test_dict}
-        # dataset_partition_dict = {'train': {'negative_sampling': train_negative_sampling_dict}}
         self._save_dataset_partition_dict(dataset_partition_dict)
 
     def _get_train_negative_sampling_dict(self, cands_ids, index_ids):
         np.random.seed(self.seed)
         train_ids_dict = {}
         intersection_set = cands_ids.intersection(index_ids)
-        matching_ids_to_remove = self._get_matching_ids_to_remove_from_original_partition()
-        intersection_set = intersection_set - matching_ids_to_remove
-        ids_from_index_to_cands = self._get_ids_from_index_to_cands_dict(intersection_set)
         for train_size, ratio_val in self.train_size_ratio_list.items():
-            train_ids_dict[train_size] = {cont_ratio: {} for cont_ratio in self.contamination_levels}
-            for cont_ratio in self.contamination_levels:
-                print(f"Creating training data ({train_size}), contamination ratio: {cont_ratio}")
-                curr_train_ids = ids_from_index_to_cands[cont_ratio]
-                num_items = int(ratio_val * len(curr_train_ids))
-                curr_train_ids = set(np.random.choice(list(curr_train_ids), num_items, replace=False))
-                for neg_samples_num in self.train_neg_samples_list:
-                    train_ids_dict[train_size][cont_ratio][neg_samples_num] = self._get_pairs_per_neg_samples(curr_train_ids,
-                                                                                                              neg_samples_num)
-        return train_ids_dict, intersection_set
-
-    def _get_ids_from_index_to_cands_dict(self, intersection_set):
-        ids_from_index_to_cands = {}
-        for cont_ratio in self.contamination_levels:
-            num_items = int(cont_ratio * len(intersection_set))
-            ids_from_index_to_cands[cont_ratio] = set(np.random.choice(list(intersection_set),
-                                                                       num_items, replace=False))
-        return ids_from_index_to_cands
-
-    def _get_matching_ids_to_remove_from_original_partition(self):
-        original_dataset_partition_dict = read_dataset_partition_dict(self.dataset_name, self.seed)
-        matching_ids_to_remove = set()
-        train_pairs = original_dataset_partition_dict['train']['blocking-based']['small'][2]
-        test_pairs = original_dataset_partition_dict['test']['matching']['blocking-based']['small'][2]
-        matching_ids_to_remove.update(set([pair[0] for pair in train_pairs if pair[0] == pair[1]]))
-        matching_ids_to_remove.update(set([pair[0] for pair in test_pairs if pair[0] == pair[1]]))
-        return matching_ids_to_remove
+            print(f"Creating training data ({train_size})")
+            train_ids_dict[train_size] = {}
+            train_ids_size_num = int(ratio_val * len(intersection_set))
+            train_ids_for_curr_size = set(np.random.choice(list(intersection_set), train_ids_size_num, replace=False))
+            for neg_samples_num in self.train_neg_samples_list:
+                train_ids_dict[train_size][neg_samples_num] = self._get_pairs_per_neg_samples(train_ids_for_curr_size,
+                                                                                              index_ids,
+                                                                                              neg_samples_num)
+        return train_ids_dict
 
     def _generate_pairs_for_id(self, args):
-        cand_id, curr_train_ids, neg_samples_num, seed = args
+        cand_id, index_ids_list, neg_samples_num, seed = args
         np.random.seed(seed + hash(cand_id) % 1_000_000)
-        neg_samples = set(np.random.choice(curr_train_ids, neg_samples_num, replace=False))
+        neg_samples = set(np.random.choice(index_ids_list, neg_samples_num, replace=False))
         neg_pairs = [(cand_id, neg_id) for neg_id in neg_samples if neg_id != cand_id]
-        return [(cand_id, f'{cand_id}_index')] + neg_pairs
+        return [(cand_id, cand_id)] + neg_pairs
 
     def _init_seed(self):
         np.random.seed(self.seed)
 
-    def _get_pairs_per_neg_samples(self, curr_ids, neg_samples_num):
-        curr_ids = list(curr_ids)
+    def _get_pairs_per_neg_samples(self, ids_for_curr_size, index_ids, neg_samples_num):
+        ids_for_curr_size_list = list(ids_for_curr_size)
+        index_ids_list = list(index_ids)
         args = [
-            (cand_id, curr_ids, neg_samples_num, self.seed)
-            for cand_id in curr_ids
+            (cand_id, index_ids_list, neg_samples_num, self.seed)
+            for cand_id in ids_for_curr_size_list
         ]
         with Pool(cpu_count(), initializer=self._init_seed, initargs=()) as pool:
             results = pool.map(self._generate_pairs_for_id, args)
@@ -98,56 +77,68 @@ class DataPartitionDirtyGenerator:
         np.random.shuffle(all_pairs)
         return all_pairs
 
-    def _get_test_ids_dict(self, cands_ids, train_ids_dict, intersection_set):
+    def _get_test_ids_dict(self, cands_ids, index_ids, train_ids_dict):
         test_ids_dict = {}
-        test_ids_dict['matching'] = self._get_test_pairs_for_matching(cands_ids, intersection_set, train_ids_dict)
-        # test_ids_dict['blocking'] = self._get_test_data_for_blocking(cands_ids,
-        #                                                              intersection_set,
-        #                                                              train_ids_dict)
+        intersection_set = cands_ids.intersection(index_ids)
+        test_ids_dict['matching'] = self._get_test_pairs_for_matching(index_ids, intersection_set, train_ids_dict)
+        test_ids_dict['blocking'] = self._get_test_data_for_blocking(cands_ids, index_ids,
+                                                                     intersection_set,
+                                                                     train_ids_dict)
         return test_ids_dict
 
-    def _get_test_pairs_for_matching(self, cands_ids, intersection_set, train_ids_dict):
+    def _get_test_pairs_for_matching(self, index_ids, intersection_set, train_ids_dict):
         print("Creating test data for matching")
         test_matching_dict = {}
-        test_matching_dict['negative_sampling'] = self._get_negative_sampling_test_ids_dict(cands_ids,
+        test_matching_dict['negative_sampling'] = self._get_negative_sampling_test_ids_dict(index_ids,
                                                                                             intersection_set,
                                                                                             train_ids_dict)
         return test_matching_dict
 
-    def _get_negative_sampling_test_ids_dict(self, cands_ids, intersection_set, train_ids_dict):
+    def _get_negative_sampling_test_ids_dict(self, index_ids, intersection_set, train_ids_dict):
         np.random.seed(self.seed)
         local_test_ids_dict = {}
         for test_size, ratio_val in self.test_size_ratio_list.items():
             print(f"Creating test data for matching ({test_size})")
             local_test_ids_dict[test_size] = {}
-            corresponding_train_cands_ids = set([pair[0] for pair in
-                                                 train_ids_dict[test_size][self.contamination_levels[-1]]
-                                                 [self.train_neg_samples_list[0]]])
+            corresponding_train_cands_ids = set \
+                ([pair[0] for pair in train_ids_dict[test_size][self.train_neg_samples_list[0]]])
             potential_test_ids = intersection_set - corresponding_train_cands_ids
             test_ids_size_num = int(ratio_val * len(potential_test_ids))
             test_ids_for_curr_size = set(np.random.choice(list(potential_test_ids), test_ids_size_num, replace=False))
             for test_neg_samples in self.test_negative_samples_list:
                 local_test_ids_dict[test_size][test_neg_samples] = self._get_pairs_per_neg_samples \
-                    (test_ids_for_curr_size, test_neg_samples)
+                    (test_ids_for_curr_size, index_ids, test_neg_samples)
         return local_test_ids_dict
 
-    # def _get_test_data_for_blocking(self, cands_ids, index_ids, intersection_set, train_ids_dict, non_matched_rat=0.2):
-    #     test_blocking_dict = defaultdict(dict)
-    #     for test_size, ratio_val in self.test_size_ratio_list.items():
-    #         print(f"Creating test data for blocking ({test_size})")
-    #         corresponding_train_cands_ids = set([pair[0] for pair in
-    #                                              train_ids_dict[test_size][self.train_neg_samples_list[0]]])
-    #         potential_cands_test_ids = intersection_set - corresponding_train_cands_ids
-    #         cands_test_ids = set(np.random.choice(list(potential_cands_test_ids),
-    #                                               int(ratio_val * len(potential_cands_test_ids)), replace=False))
-    #         index_ids_to_remove = set(np.random.choice(list(cands_test_ids),
-    #                                                    int(non_matched_rat * len(cands_test_ids)), replace=False))
-    #         index_test_ids = index_ids - index_ids_to_remove
-    #         index_test_ids = set(np.random.choice(list(index_test_ids),
-    #                                                int(ratio_val * len(index_test_ids)), replace=False))
-    #         test_blocking_dict[test_size] = {'cands': cands_test_ids, 'index': index_test_ids}
-    #     return test_blocking_dict
+    def _get_test_data_for_blocking(self, cands_ids, index_ids, intersection_set, train_ids_dict, non_matched_rat=0.2):
+        test_blocking_dict = defaultdict(dict)
+        for test_size, ratio_val in self.test_size_ratio_list.items():
+            print(f"Creating test data for blocking ({test_size})")
+            corresponding_train_cands_ids = set([pair[0] for pair in
+                                                 train_ids_dict[test_size][self.train_neg_samples_list[0]]])
+            potential_cands_test_ids = intersection_set - corresponding_train_cands_ids
+            cands_test_ids = set(np.random.choice(list(potential_cands_test_ids),
+                                                  int(ratio_val * len(potential_cands_test_ids)), replace=False))
+            index_ids_to_remove = set(np.random.choice(list(cands_test_ids),
+                                                       int(non_matched_rat * len(cands_test_ids)), replace=False))
+            index_test_ids = index_ids - index_ids_to_remove
+            index_test_ids = set(np.random.choice(list(index_test_ids),
+                                                   int(ratio_val * len(index_test_ids)), replace=False))
+            test_blocking_dict[test_size] = {'cands': cands_test_ids, 'index': index_test_ids}
+        return test_blocking_dict
 
+    def _read_objects_bo_em(self, dataset_config):
+        objects_path_dict = read_object_path_dict(dataset_config)
+        object_dict = defaultdict(dict)
+        for objects_type, objects_path in objects_path_dict.items():
+            for filename in os.listdir(objects_path):
+                if not filename.endswith('.json'):
+                    continue
+                file_ind = int(filename.split('.')[0])
+                json_data = read_json(objects_path, file_ind)
+                object_dict = self._insert_polygon_mesh(object_dict, objects_type, json_data, file_ind)
+            object_dict[objects_type] = dict(sorted(object_dict[objects_type].items()))
+        return object_dict
 
     @staticmethod
     def _remove_train_objects_from_object_dict(object_dict, train_ids):
@@ -157,6 +148,35 @@ class DataPartitionDirtyGenerator:
                 for object_id, object_data in object_dict[objects_type].items()
                 if object_id not in train_ids
             }
+        return object_dict
+
+    def _read_objects_gpkg(self, dataset_config):
+        objects_path_dict = read_object_path_dict(dataset_config)
+        object_dict = defaultdict(dict)
+        for objects_type, objects_path in objects_path_dict.items():
+            for filename in os.listdir(objects_path):
+                file_ind = int(filename.split('.')[0])
+                json_data = read_json(objects_path, file_ind)
+                json_data = json.loads(json_data)
+                object_dict = self._insert_polygon_mesh(object_dict, objects_type, json_data, file_ind)
+            object_dict[objects_type] = dict(sorted(object_dict[objects_type].items()))
+        return object_dict
+
+    def _read_objects_delivery3(self, dataset_config):
+        objects_path_dict = read_object_path_dict(dataset_config)
+        object_dict = defaultdict(dict)
+        mapping_dict = defaultdict(dict)
+        inv_mapping_dict = defaultdict(dict)
+        for objects_type, objects_path in objects_path_dict.items():
+            for file_ind, file_name in enumerate(os.listdir(objects_path)):
+                file_name = file_name.split('.')[0]
+                json_data = read_json(objects_path, file_name)
+                object_dict = self._insert_polygon_mesh(object_dict, objects_type, json_data, file_ind)
+                mapping_dict[objects_type][file_ind] = file_name
+                inv_mapping_dict[objects_type][file_name] = file_ind
+            object_dict[objects_type] = dict(sorted(object_dict[objects_type].items()))
+        object_dict['mapping_dict'] = mapping_dict
+        object_dict['inv_mapping_dict'] = inv_mapping_dict
         return object_dict
 
     @staticmethod
@@ -210,6 +230,43 @@ class DataPartitionDirtyGenerator:
         object_dict['cands'] = {k: object_dict['cands'][k] for k in intersection_keys}
         return object_dict, intersection_keys
 
+    def _read_objects_synthetic(self, dataset_config):
+        objects_path_dict = read_object_path_dict(dataset_config)
+        object_dict = defaultdict(dict)
+        for objects_type, objects_path in objects_path_dict.items():
+            object_dict[objects_type] = self._process_object_file_synthetic(objects_path)
+        return object_dict
+
+    def _process_object_file_synthetic(self, file_path):
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+        vertices = data['vertices']
+        local_object_dict = {}
+        for obj_key in data['CityObjects'].keys():
+            try:
+                polygon_mesh_data = self._get_polygon_synthetic(data, obj_key, vertices,
+                                                                min_surfaces_num=self.min_surfaces_num)
+                if polygon_mesh_data is not None:
+                    local_object_dict[obj_key] = polygon_mesh_data
+            except:
+                continue
+        return local_object_dict
+
+    def _get_polygon_synthetic(self, data, obj_key, vertices, min_surfaces_num):
+        boundaries = data['CityObjects'][obj_key]['geometry'][0]['boundaries']
+        if len(boundaries) < min_surfaces_num:
+            return None
+        polygon_mesh = []
+        for surface in boundaries:
+            polygon_mesh.append([vertices[i] for sub_surface_list in surface for i in sub_surface_list])
+        vertices = self._get_vertices(polygon_mesh)
+        centroid = self._compute_object_centroid(vertices)
+        return {'polygon_mesh': polygon_mesh, 'vertices': vertices, 'centroid': centroid}
+
+    @staticmethod
+    def _get_vertices(polygon_mesh):
+        return np.unique(np.array([coord for surface in polygon_mesh for coord in surface]), axis=0)
+
 
     @staticmethod
     def _print_object_dict_info(object_dict, intersection_keys):
@@ -260,21 +317,17 @@ class DataPartitionDirtyGenerator:
         unique_vertices = np.array(vertices)
         return unique_vertices.mean(axis=0)
 
-    @staticmethod
-    def _get_vertices(polygon_mesh):
-        return np.unique(np.array([coord for surface in polygon_mesh for coord in surface]), axis=0)
-
     def _save_dataset_partition_dict(self, dataset_partition_dict):
         if not os.path.exists(config.FilePaths.dataset_partition_path):
             os.makedirs(config.FilePaths.dataset_partition_path)
-        path = f"{config.FilePaths.dataset_partition_path}{self.dataset_name}_seed{self.seed}_dirty.pkl"
+        path = f"{config.FilePaths.dataset_partition_path}{self.dataset_name}_seed{self.seed}.pkl"
         pkl.dump(dataset_partition_dict, open(path, 'wb'))
         print(f"Saved the dataset partition dict to {path}")
         return
 
 
 def generate_partition_dicts(args):
-    partition_dict_obj = DataPartitionDirtyGenerator(args)
+    partition_dict_obj = DataPartitionGenerator(args)
     for seed in range(1, args.seeds_num + 1):
         print(f"Creating dataset partition dict for seed {seed}")
         start_time = time()
@@ -328,21 +381,21 @@ def get_blocking_based_pairs(args, seed, train_or_test, dataset_partition_dict):
     return local_test_ids_dict
 
 
-# def add_blocking_based_mode_pairs(args):
-#     for seed in range(1, args.seeds_num + 1):
-#         # read the existing dataset partition dict
-#
-#         dataset_partition_dict = pkl.load(open(f"data/dataset_partitions/{args.dataset_name}_seed{seed}.pkl", 'rb'))
-#         print(f"Loaded dataset partition dict for seed {seed} with blocking-based pairs")
-#         dataset_partition_dict['train']['blocking-based'] = get_blocking_based_pairs(args, seed, 'train',
-#                                                                                      dataset_partition_dict)
-#         dataset_partition_dict['test']['matching']['blocking-based'] = get_blocking_based_pairs(args, seed, 'test',
-#                                                                                                 dataset_partition_dict)
-#         # save the updated dataset partition dict
-#         pkl.dump(dataset_partition_dict, open(f"data/dataset_partitions/{args.dataset_name}_seed{seed}.pkl", 'wb'))
-#         print(f"Updated dataset partition dict for seed {seed} with blocking-based pairs")
-#         print(3 * '--------------------------')
-#     return
+def add_blocking_based_mode_pairs(args):
+    for seed in range(1, args.seeds_num + 1):
+        # read the existing dataset partition dict
+
+        dataset_partition_dict = pkl.load(open(f"data/dataset_partitions/{args.dataset_name}_seed{seed}.pkl", 'rb'))
+        print(f"Loaded dataset partition dict for seed {seed} with blocking-based pairs")
+        dataset_partition_dict['train']['blocking-based'] = get_blocking_based_pairs(args, seed, 'train',
+                                                                                     dataset_partition_dict)
+        dataset_partition_dict['test']['matching']['blocking-based'] = get_blocking_based_pairs(args, seed, 'test',
+                                                                                                dataset_partition_dict)
+        # save the updated dataset partition dict
+        pkl.dump(dataset_partition_dict, open(f"data/dataset_partitions/{args.dataset_name}_seed{seed}.pkl", 'wb'))
+        print(f"Updated dataset partition dict for seed {seed} with blocking-based pairs")
+        print(3 * '--------------------------')
+    return
 
 
 if __name__ == "__main__":
@@ -350,18 +403,16 @@ if __name__ == "__main__":
     parser.add_argument('--dataset_name', type=str, default=config.Constants.dataset_name)
     parser.add_argument('--blocking_based_mode', type=bool, default=True)
     parser.add_argument('--seeds_num', type=int, default=config.Constants.seeds_num)
-    parser.add_argument('--train_neg_samples_list', type=list, default=[2])
-    parser.add_argument('--test_negative_samples_list', type=list, default=[2])
-    parser.add_argument('--train_size_ratio_list', type=dict, default={"small": 0.1})
-    parser.add_argument('--test_size_ratio_list', type=dict, default={"small": 0.1})
+    parser.add_argument('--train_neg_samples_list', type=list, default=[2, 5])
+    parser.add_argument('--test_negative_samples_list', type=list, default=[2, 5])
+    parser.add_argument('--train_size_ratio_list', type=dict, default={"small": 0.1, "medium": 0.4, "large": 0.6})
+    parser.add_argument('--test_size_ratio_list', type=dict, default={"small": 0.1, "medium": 0.5, "large": 1.0})
     parser.add_argument('--bkafi_dim', type=int, default=3)
-    # add list of contamination ratio ranging form 0.05 to 0.5 in steps of 0.05
-    parser.add_argument('--contamination_levels', type=list, default=[round(0.05* i, 2) for i in range(1, 11)])
 
     args = parser.parse_args()
-    generate_partition_dicts(args)
-    # if args.blocking_based_mode:  # load existing partitions and add blocking-based partitions for the matching mode
-    #     add_blocking_based_mode_pairs(args)
-    # else:
-    #     generate_partition_dicts(args)
+
+    if args.blocking_based_mode:  # load existing partitions and add blocking-based partitions for the matching mode
+        add_blocking_based_mode_pairs(args)
+    else:
+        generate_partition_dicts(args)
 
