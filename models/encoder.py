@@ -28,7 +28,10 @@ class GraphEncoder(nn.Module):
 
         self.layers = nn.ModuleList()
         self.norms = nn.ModuleList()
+        self._define_layers(feature_config)
+        self.project = nn.Linear(self.out_dim, self.out_dim)
 
+    def _define_layers(self, feature_config):
         for i in range(self.num_layers):
             out_channels = self._get_out_channels(i)
             conv = HeteroConv(
@@ -39,8 +42,6 @@ class GraphEncoder(nn.Module):
             )
             self.layers.append(conv)
             self.norms.append(nn.BatchNorm1d(out_channels))
-
-        self.project = nn.Linear(self.out_dim, self.out_dim)
 
     def _get_out_channels(self, layer_idx):
         if layer_idx == 0:
