@@ -298,6 +298,7 @@ def generate_final_result_csv(results_dict, args):
         raise ValueError(f"Evaluation mode {evaluation_mode} is not supported")
     return
 
+
 def generate_final_result_pickle(result_dict, training_params, output_dir="results", filename=None):
     """
     Save per-seed metrics, mean/std summary, and training_params to a pickle.
@@ -317,24 +318,29 @@ def generate_final_result_pickle(result_dict, training_params, output_dir="resul
         for m in metrics:
             stacks[m].append(mvals[m])
 
-    summary = {
-        m: {
-            "values": np.array(stacks[m]),
-            "mean": float(np.mean(stacks[m])),
-            "std": float(np.std(stacks[m])),
-        } for m in metrics
-    }
+    summary = {}
+    for m in metrics:
+        vals = np.array(stacks[m])
+        summary[m] = {
+            "values": np.round(vals, 3).tolist(),
+            "mean": round(float(np.mean(vals)), 3),
+            "std": round(float(np.std(vals)), 3),
+        }
 
     artifact = {
-        "training_params": dict(training_params),  # saved verbatim
-        "seed_results": result_dict,               # per-seed metrics
-        "summary": summary,                        # mean/std per metric
+        "training_params": dict(training_params),
+        "seed_results": {
+            seed: {m: round(float(v), 3) for m, v in mvals.items()}
+            for seed, mvals in result_dict.items()
+        },
+        "summary": summary,
         "created_at": datetime.datetime.now().isoformat(timespec="seconds"),
     }
 
     if filename is None:
         filename = f"final_results_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pkl"
     path = os.path.join(output_dir, filename)
+
     with open(path, "wb") as f:
         pkl.dump(artifact, f)
 

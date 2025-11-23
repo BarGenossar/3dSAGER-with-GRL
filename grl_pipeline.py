@@ -95,7 +95,6 @@ class GRLPipelineManager:
                     continue
                 obj_id, graph = res
                 graphs[obj_id] = graph
-
         return graphs
 
     @staticmethod
@@ -108,8 +107,35 @@ class GRLPipelineManager:
             logger: Optional[Any] = None,
     ) -> Optional[Tuple[str, Dict[str, Any]]]:
         """
-        Static helper: process a single CityJSON object into a graph dict.
-        Skips objects without enough surfaces or without a valid MainObject vector.
+        Processes a single CityJSON object into a graph dictionary suitable for graph representation learning.
+
+        Args:
+            obj_id (str): Identifier for the CityJSON object.
+            obj (Dict[str, Any]): The CityJSON object dictionary, enriched with local vertex mappings.
+            min_surfaces_num (int): Minimum number of semantic surfaces required to process the object.
+            type_generators (Dict[str, Any]): Mapping from semantic type names to feature generator classes.
+            feature_config (Dict[str, Any]): Configuration for feature extraction per semantic type.
+            logger (Optional[Any]): Logger for debug or warning messages (optional).
+
+        Returns:
+            Optional[Tuple[str, Dict[str, Any]]]:
+                - (obj_id, graph_dict) if the object is valid and processed successfully.
+                - None if the object is skipped (e.g., not enough surfaces, invalid main vector, or error).
+
+        Processing Steps:
+            1. Extracts the list of semantic surfaces from the object's geometry.
+            2. Skips the object if it has fewer surfaces than `min_surfaces_num`.
+            3. Groups surface indices by semantic type (`node_lists`).
+            4. Builds forward and reverse index mappings for each semantic type.
+            5. Constructs edge lists between semantic types (including parent-child and main-object connections).
+            6. Generates feature matrices for each surface type.
+            7. Generates the feature vector for the main object.
+            8. Skips the object if the main object vector is invalid.
+            9. Assembles all components into a graph dictionary and returns it.
+
+        Notes:
+            - Returns None on any exception or if the object does not meet requirements.
+            - Used in parallel processing to convert all objects in a CityJSON file to graph representations.
         """
         try:
             surfaces = obj.get("geometry", [])[0].get("semantics", {}).get("surfaces", [])
@@ -123,12 +149,15 @@ class GRLPipelineManager:
                 main_connection_types=("GroundSurface", "WallSurface", "RoofSurface"),
                 bidirectional=True,
             )
+
             x_by_type, feat_dims = GRLPipelineManager._generate_surface_features(
                 node_lists, obj, type_generators, feature_config, logger
             )
+
             x_main, main_dim = GRLPipelineManager._generate_mainobject_vector(
                 obj, type_generators, feature_config, logger
             )
+
             if x_main is None:
                 return None
             feat_dims["MainObject"] = main_dim
@@ -304,29 +333,56 @@ class GRLPipelineManager:
 
     def _iter_objects(self, raw: dict, path: str):
         """
-        Yield (obj_id, obj) from a multi-object CityJSON container.
-        - Attaches local vertex list + mappings for each object.
+        Yield (obj_id, obj) from a CityJSON file.
+        Attaches:
+            - vertices (translated to local frame)
+            - centroid
+            - global/local index maps
         """
-        assert "CityObjects" in raw and isinstance(raw["CityObjects"], dict), \
-            f"{path}: expected raw['CityObjects'] as a dict"
-        assert "vertices" in raw, f"{path}: expected root-level 'vertices'"
-        global_vertices = raw["vertices"]
+        assert "CityObjects" in raw, f"{path}: expected raw['CityObjects']"
+        assert "vertices" in raw, f"{path}: expected raw['vertices']"
+
+        global_vertices = np.array(raw["vertices"], dtype=float)
+
         for obj_id, obj in raw["CityObjects"].items():
-            # Collect all global vertex indices used in this object
-            used_indices = set()
-            for geom in obj.get("geometry", []):
-                boundaries = geom.get("boundaries", [])
-                used_indices.update(self._collect_vertex_indices(boundaries))
-            sorted_indices = sorted(used_indices)
-            global_to_local = {g: l for l, g in enumerate(sorted_indices)}
-            local_to_global = {l: g for g, l in global_to_local.items()}
-            obj = {
+            local_vertices, global_to_local, local_to_global = \
+                self._extract_local_vertices(obj, global_vertices)
+
+            translated_vertices, centroid = \
+                self._translate_to_local_frame(local_vertices)
+
+            obj_out = {
                 **obj,
-                "vertices": [global_vertices[g] for g in sorted_indices],
+                "vertices": translated_vertices.tolist(),  # local coordinates
+                "centroid": centroid.tolist(),  # optional but useful
                 "global_to_local": global_to_local,
                 "local_to_global": local_to_global,
             }
-            yield obj_id, obj
+
+            yield obj_id, obj_out
+
+    def _extract_local_vertices(self, obj, global_vertices):
+        """Return the list of vertices used by this CityJSON object (still global coordinates)."""
+        used_indices = set()
+        for geom in obj.get("geometry", []):
+            boundaries = geom.get("boundaries", [])
+            used_indices.update(self._collect_vertex_indices(boundaries))
+
+        sorted_indices = sorted(used_indices)
+
+        local_vertices = np.array([global_vertices[g] for g in sorted_indices], dtype=float)
+
+        global_to_local = {g: i for i, g in enumerate(sorted_indices)}
+        local_to_global = {i: g for i, g in enumerate(sorted_indices)}
+
+        return local_vertices, global_to_local, local_to_global
+
+    @staticmethod
+    def _translate_to_local_frame(vertices):
+        """Translate vertices to an object centered local frame."""
+        centroid = vertices.mean(axis=0)
+        translated = vertices - centroid
+        return translated, centroid
 
     @staticmethod
     def _collect_node_lists(surfaces: List[Dict[str, Any]]) -> Dict[str, List[int]]:

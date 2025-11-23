@@ -107,10 +107,10 @@ class MainObjectFeaturesGenerator(BaseFeaturesGenerator):
             return 0.0
         return float(geo_utils.ConvexHull(self._vertices_arr[:, :2]).area)
 
-    def _compute_convex_hull_volume(self, _: int = 0) -> float:
+    def _compute_convex_hull_volume(self, _: int = 0, norm_const: float = 1e9) -> float:
         if self._vertices_arr.shape[0] < 4:
             return 0.0
-        return float(geo_utils.ConvexHull(self._vertices_arr).volume)
+        return float(geo_utils.ConvexHull(self._vertices_arr).volume) / norm_const
 
     def _compute_ave_centroid_distance(self, _: int = 0) -> float:
         dists = np.linalg.norm(self._vertices_arr - self._centroid, axis=1)

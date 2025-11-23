@@ -8,7 +8,6 @@ import torch
 from torch_geometric.data import HeteroData
 
 
-# --------- Public “feature provider” interface (implemented elsewhere) ---------
 class PropertyProvider(Protocol):
     """
     Interface that supplies property vectors (features) for each semantic instance and

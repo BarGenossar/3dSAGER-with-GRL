@@ -107,17 +107,22 @@ def compute_polygon_mesh_area(polygon_mesh: list) -> float:
     return sum(compute_polygon_area(np.array(face)) for face in polygon_mesh)
 
 
-def compute_polygon_mesh_volume(polygon_mesh: list) -> float:
-    """Compute signed volume of a closed polygon mesh (absolute value returned)."""
+def compute_polygon_mesh_volume(polygon_mesh: list, norm_const: float = 1e9) -> float:
+    """
+    Compute signed volume of a closed polygon mesh (absolute value returned).
+    polygon_mesh: list of faces, each face is list of vertex coords (already translated).
+    norm_const: normalization constant (default 1.0 means no normalization).
+    """
     volume = 0.0
     for face in polygon_mesh:
         if len(face) < 3:
             continue
-        v0 = np.array(face[0])
+        v0 = np.array(face[0], dtype=float)
         for i in range(1, len(face) - 1):
-            v1, v2 = np.array(face[i]), np.array(face[i + 1])
+            v1 = np.array(face[i], dtype=float)
+            v2 = np.array(face[i + 1], dtype=float)
             volume += np.dot(v0, np.cross(v1, v2)) / 6.0
-    return abs(volume)
+    return abs(float(volume)) / norm_const
 
 
 def compute_eigendecomposition(vertices: np.ndarray):
