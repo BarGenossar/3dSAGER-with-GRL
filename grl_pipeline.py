@@ -150,7 +150,7 @@ class GRLPipelineManager:
                 bidirectional=True,
             )
 
-            x_by_type, feat_dims = GRLPipelineManager._generate_surface_features(
+            x_by_type, feat_dims = GRLPipelineManager._generate_type_features(
                 node_lists, obj, type_generators, feature_config, logger
             )
 
@@ -170,7 +170,7 @@ class GRLPipelineManager:
             return None
 
     @staticmethod
-    def _generate_surface_features(node_lists, obj, type_generators, feature_config, logger):
+    def _generate_type_features(node_lists, obj, type_generators, feature_config, logger):
         """
         Generate feature tensors for all semantic surface types.
         Apply log scaling to compress large ranges.
