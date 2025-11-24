@@ -31,16 +31,16 @@ class GroundFeaturesGenerator(BaseFeaturesGenerator):
         z_vals = [v[2] for v in coords]
         return float(np.mean(z_vals))
 
-    def _compute_elevation_variance(self, element_idx: int) -> float:
-        surface = self.obj["geometry"][0]["boundaries"][element_idx]
-        coords = self._resolve_indices(surface[0])
-        if not coords:
-            return 0.0
-        z_vals = [v[2] for v in coords]
-        return float(np.var(z_vals))
+    # def _compute_elevation_variance(self, element_idx: int) -> float:
+    #     surface = self.obj["geometry"][0]["boundaries"][element_idx]
+    #     coords = self._resolve_indices(surface[0])
+    #     if not coords:
+    #         return 0.0
+    #     z_vals = [v[2] for v in coords]
+    #     return float(np.var(z_vals))
 
-    def _compute_planarity_deviation(self, element_idx: int) -> float:
-        return super()._compute_planarity_deviation(element_idx)
+    # def _compute_planarity_deviation(self, element_idx: int) -> float:
+    #     return super()._compute_planarity_deviation(element_idx)
 
     def _compute_compactness(self, element_idx: int) -> float:
         return super()._compute_compactness(element_idx)
@@ -56,13 +56,13 @@ class GroundFeaturesGenerator(BaseFeaturesGenerator):
         hull_area = hull.area
         return float(surface_area / hull_area) if hull_area > 0 else 0.0
 
-    def _compute_neighbor_count(self, element_idx: int) -> int:
-        """
-        Placeholder: number of adjacent surfaces that share edges with this ground surface.
-        In practice, likely injected by pipeline (topological preprocessing).
-        """
-        # Without global adjacency info, default to 0
-        return 0
+    # def _compute_neighbor_count(self, element_idx: int) -> int:
+    #     """
+    #     Placeholder: number of adjacent surfaces that share edges with this ground surface.
+    #     In practice, likely injected by pipeline (topological preprocessing).
+    #     """
+    #     # Without global adjacency info, default to 0
+    #     return 0
 
     def _compute_footprint_alignment(self, element_idx: int) -> float:
         """

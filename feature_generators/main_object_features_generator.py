@@ -107,7 +107,7 @@ class MainObjectFeaturesGenerator(BaseFeaturesGenerator):
             return 0.0
         return float(geo_utils.ConvexHull(self._vertices_arr[:, :2]).area)
 
-    def _compute_convex_hull_volume(self, _: int = 0, norm_const: float = 1e9) -> float:
+    def _compute_convex_hull_volume(self, _: int = 0, norm_const: float = 1.0) -> float:
         if self._vertices_arr.shape[0] < 4:
             return 0.0
         return float(geo_utils.ConvexHull(self._vertices_arr).volume) / norm_const

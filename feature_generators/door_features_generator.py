@@ -50,14 +50,14 @@ class DoorFeaturesGenerator(BaseFeaturesGenerator):
             return 0.0
         return float((z_door - z_min) / (z_max - z_min))
 
-    def _compute_ground_adjacency(self, element_idx: int) -> float:
-        """
-        Proportion of door vertices that touch the global ground elevation.
-        """
-        coords = self._get_surface_coords(element_idx)
-        ground_z = np.min(np.array(self.vertices)[:, 2])
-        num_touching = np.sum(np.isclose(coords[:, 2], ground_z, atol=1e-2))
-        return float(num_touching / max(1, coords.shape[0]))
+    # def _compute_ground_adjacency(self, element_idx: int) -> float:
+    #     """
+    #     Proportion of door vertices that touch the global ground elevation.
+    #     """
+    #     coords = self._get_surface_coords(element_idx)
+    #     ground_z = np.min(np.array(self.vertices)[:, 2])
+    #     num_touching = np.sum(np.isclose(coords[:, 2], ground_z, atol=1e-2))
+    #     return float(num_touching / max(1, coords.shape[0]))
 
     def _compute_width_at_base(self, element_idx: int) -> float:
         """

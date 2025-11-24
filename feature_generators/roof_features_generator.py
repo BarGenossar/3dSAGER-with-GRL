@@ -62,12 +62,12 @@ class RoofFeaturesGenerator(BaseFeaturesGenerator):
     def _compute_planarity_deviation(self, element_idx: int) -> float:
         return super()._compute_planarity_deviation(element_idx)
 
-    def _compute_neighbor_connectivity(self, element_idx: int) -> int:
-        """
-        Placeholder: number of adjacent surfaces.
-        Should be populated from adjacency graph in pipeline.
-        """
-        return 0
+    # def _compute_neighbor_connectivity(self, element_idx: int) -> int:
+    #     """
+    #     Placeholder: number of adjacent surfaces.
+    #     Should be populated from adjacency graph in pipeline.
+    #     """
+    #     return 0
 
     def _compute_overhang_ratio(self, element_idx: int) -> float:
         """
@@ -83,12 +83,12 @@ class RoofFeaturesGenerator(BaseFeaturesGenerator):
         footprint_area = geo_utils.compute_polygon_area(np.c_[coords_2d, np.zeros(len(coords_2d))])
         return float(footprint_area / hull_area) if hull_area > 0 else 0.0
 
-    def _compute_roof_type_encoding(self, element_idx: int) -> float:
-        """
-        Placeholder categorical encoding.
-        In practice: gabled, flat, hip, etc. Could come from preprocessing.
-        """
-        return 0.0
+    # def _compute_roof_type_encoding(self, element_idx: int) -> float:
+    #     """
+    #     Placeholder categorical encoding.
+    #     In practice: gabled, flat, hip, etc. Could come from preprocessing.
+    #     """
+    #     return 0.0
 
     def _compute_surface_fractality(self, element_idx: int) -> float:
         """

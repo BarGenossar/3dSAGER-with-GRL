@@ -107,7 +107,7 @@ def compute_polygon_mesh_area(polygon_mesh: list) -> float:
     return sum(compute_polygon_area(np.array(face)) for face in polygon_mesh)
 
 
-def compute_polygon_mesh_volume(polygon_mesh: list, norm_const: float = 1e9) -> float:
+def compute_polygon_mesh_volume(polygon_mesh: list, norm_const: float = 1.0) -> float:
     """
     Compute signed volume of a closed polygon mesh (absolute value returned).
     polygon_mesh: list of faces, each face is list of vertex coords (already translated).

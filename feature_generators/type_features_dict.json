@@ -32,12 +32,8 @@
     "surface_area",
     "perimeter_length",
     "elevation_mean",
-    "elevation_variance",
-    "planarity_deviation",
     "compactness",
-    "convex_hull_ratio_2d",
-    "neighbor_count",
-    "footprint_alignment"
+    "convex_hull_ratio_2d"
   ],
   "RoofSurface": [
     "surface_area",
@@ -46,9 +42,7 @@
     "height_above_ground",
     "convexity_index",
     "planarity_deviation",
-    "neighbor_connectivity",
     "overhang_ratio",
-    "roof_type_encoding",
     "surface_fractality"
   ],
   "WallSurface": [
@@ -71,14 +65,12 @@
     "orientation",
     "shape_complexity",
     "density_per_wall",
-    "symmetry_indicator",
-    "material_flag"
+    "symmetry_indicator"
   ],
   "Door": [
     "door_area",
     "aspect_ratio",
     "relative_wall_position",
-    "ground_adjacency",
     "width_at_base",
     "orientation",
     "door_to_wall_ratio",

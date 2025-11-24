@@ -106,11 +106,11 @@ class WindowFeaturesGenerator(BaseFeaturesGenerator):
         ratio = width / height
         return float(min(ratio, 1.0 / ratio))
 
-    def _compute_material_flag(self, element_idx: int) -> int:
-        """
-        Material flag: placeholder binary feature (1=glass).
-        Could later be linked to obj['attributes'] if material info exists.
-        """
-        surface = self.surfaces[element_idx]
-        mat = surface.get("material", "").lower()
-        return int("glass" in mat) if mat else 1  # default assume glass
+    # def _compute_material_flag(self, element_idx: int) -> int:
+    #     """
+    #     Material flag: placeholder binary feature (1=glass).
+    #     Could later be linked to obj['attributes'] if material info exists.
+    #     """
+    #     surface = self.surfaces[element_idx]
+    #     mat = surface.get("material", "").lower()
+    #     return int("glass" in mat) if mat else 1  # default assume glass
