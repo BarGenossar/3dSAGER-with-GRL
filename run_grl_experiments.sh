@@ -25,7 +25,7 @@ compute_total_combinations() {
 
 
 # ===== define grids =====
-pair_aggs=("concat" "abs_diff" "division" "all")
+pair_aggs=("abs_diff" "concat" "division" "all")
 lrs=(0.0001 0.0005 0.001)
 weight_decays=(0.0001 0.001)
 gnn_layers=(2 3)
@@ -38,7 +38,6 @@ dropouts=(0.0 0.1)
 # ===== fixed args =====
 dataset="synthetic_example"
 suffix="gridsearch_021125"
-
 
 total_combinations=$(compute_total_combinations)
 echo "Total combinations: $total_combinations"

@@ -348,13 +348,14 @@ class GRLPipelineManager:
             local_vertices, global_to_local, local_to_global = \
                 self._extract_local_vertices(obj, global_vertices)
 
-            translated_vertices, centroid = \
-                self._translate_to_local_frame(local_vertices)
+            # translated_vertices, centroid = \
+            #     self._translate_to_local_frame(local_vertices)
 
             obj_out = {
                 **obj,
-                "vertices": translated_vertices.tolist(),  # local coordinates
-                "centroid": centroid.tolist(),  # optional but useful
+                # "vertices": translated_vertices.tolist(),  # local coordinates
+                "vertices": local_vertices,  # local coordinates
+                # "centroid": centroid.tolist(),  # optional but useful
                 "global_to_local": global_to_local,
                 "local_to_global": local_to_global,
             }
@@ -367,14 +368,10 @@ class GRLPipelineManager:
         for geom in obj.get("geometry", []):
             boundaries = geom.get("boundaries", [])
             used_indices.update(self._collect_vertex_indices(boundaries))
-
         sorted_indices = sorted(used_indices)
-
-        local_vertices = np.array([global_vertices[g] for g in sorted_indices], dtype=float)
-
+        local_vertices = [global_vertices[g] for g in sorted_indices]
         global_to_local = {g: i for i, g in enumerate(sorted_indices)}
         local_to_global = {i: g for i, g in enumerate(sorted_indices)}
-
         return local_vertices, global_to_local, local_to_global
 
     @staticmethod

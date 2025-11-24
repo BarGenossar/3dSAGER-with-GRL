@@ -28,7 +28,7 @@ class Constants:
     load_property_dict = True  # Load the properties dictionary
     save_dataset_dict = True  # save the dataset dictionary
     load_dataset_dict = False  # load existing dataset dictionary
-    file_name_suffix = "grl_291025"  # If set to None, the current exact time will be used
+    file_name_suffix = "grl_231125"  # If set to None, the current exact time will be used
     # contamination_levels = [round(0.05*i, 2) for i in range(1, 11)]  # Contamination levels for contamination models
     contamination_levels = [round(0.05 * i, 2) for i in range(1, 11)]
 
